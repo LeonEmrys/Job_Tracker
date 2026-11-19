@@ -426,6 +426,47 @@ def delete_application(application_id):
     flash("Application deleted.", "success")
     return redirect(url_for("applications"))
 
+# ---------- Job Match ----------
+
+def calculate_matches(user_skills):
+    """Rank jobs by the percentage of their required skills the user has."""
+    have = {skill.lower() for skill in user_skills}
+    rows = query_all(
+        "SELECT j.job_id, j.job_title, j.requirements, co.company_name FROM jobs j "
+        "LEFT JOIN companies co ON j.company_id = co.company_id"
+    )
+    results = []
+    for row in rows:
+        required = parse_requirements(row["requirements"])
+        if not required:
+            continue
+        matched = [s for s in required if s.lower() in have]
+        missing = [s for s in required if s.lower() not in have]
+        results.append({
+            "job_title": row["job_title"],
+            "company_name": row["company_name"],
+            "matched": matched,
+            "missing": missing,
+            "total": len(required),
+            "percent": round(100 * len(matched) / len(required)),
+        })
+    results.sort(key=lambda r: (-r["percent"], r["job_title"]))
+    return results
+
+
+@app.route("/job-match", methods=["GET", "POST"])
+def job_match():
+    skills_text = ""
+    results = None
+    if request.method == "POST":
+        skills_text = request.form["skills"]
+        skills = skills_from_text(skills_text)
+        if not skills:
+            flash("Please enter at least one skill.", "danger")
+        else:
+            results = calculate_matches(skills)
+    return render_template("job_match.html", skills_text=skills_text, results=results)
+
 
 if __name__ == "__main__":
     app.run(debug=True)

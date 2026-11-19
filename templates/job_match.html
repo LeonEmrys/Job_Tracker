@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Job Match{% endblock %}
+{% block content %}
+<h1>Job Match</h1>
+<form method="post" class="bg-white p-4 border rounded mb-4">
+  <label class="form-label">Your Skills (comma-separated)</label>
+  <div class="input-group">
+    <input class="form-control" name="skills" value="{{ skills_text }}" placeholder="Python, SQL, Flask" required>
+    <button class="btn btn-primary">Find Matching Jobs</button>
+  </div>
+</form>
+
+{% if results is not none %}
+  <h4>Matching Jobs</h4>
+  {% for r in results %}
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="d-flex justify-content-between">
+        <h5 class="mb-1">{{ loop.index }}. {{ r.job_title }} at {{ r.company_name or 'Unknown company' }}</h5>
+        <strong>{{ r.percent }}% ({{ r.matched | length }}/{{ r.total }} skills)</strong>
+      </div>
+      <div class="progress mb-2">
+        <div class="progress-bar" style="width: {{ r.percent }}%"></div>
+      </div>
+      {% if r.matched %}
+        <div>You have: {% for s in r.matched %}<span class="badge text-bg-success me-1">{{ s }}</span>{% endfor %}</div>
+      {% endif %}
+      {% if r.missing %}
+        <div class="mt-1">Missing: {% for s in r.missing %}<span class="badge text-bg-danger me-1">{{ s }}</span>{% endfor %}</div>
+      {% endif %}
+    </div>
+  </div>
+  {% else %}
+  <p>No jobs with required skills yet. Add skills to your jobs first.</p>
+  {% endfor %}
+{% endif %}
+{% endblock %}
