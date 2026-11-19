@@ -9,14 +9,25 @@ app.secret_key = os.getenv("SECRET_KEY", "dev-secret-key")
 
 @app.route("/")
 def dashboard():
-    conn = get_db()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT COUNT(*) AS count FROM applications")
-    total = cursor.fetchone()["count"]
-    cursor.close()
-    conn.close()
-    return render_template("dashboard.html", total=total)
-
+    counts = query_one(
+        "SELECT "
+        "(SELECT COUNT(*) FROM companies) AS companies, "
+        "(SELECT COUNT(*) FROM jobs) AS jobs, "
+        "(SELECT COUNT(*) FROM applications) AS applications, "
+        "(SELECT COUNT(*) FROM contacts) AS contacts"
+    )
+    status_counts = {s: 0 for s in STATUSES}
+    for row in query_all("SELECT status, COUNT(*) AS count FROM applications GROUP BY status"):
+        status_counts[row["status"]] = row["count"]
+    recent = query_all(
+        "SELECT a.application_date, a.status, j.job_title, co.company_name "
+        "FROM applications a "
+        "LEFT JOIN jobs j ON a.job_id = j.job_id "
+        "LEFT JOIN companies co ON j.company_id = co.company_id "
+        "ORDER BY a.application_date DESC, a.application_id DESC LIMIT 5"
+    )
+    return render_template("dashboard.html", counts=counts,
+                           status_counts=status_counts, recent=recent)
 
 # ---------- Companies ----------
 

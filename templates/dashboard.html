@@ -1,5 +1,57 @@
 {% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
 {% block content %}
-<h1>Dashboard</h1>
-<p>Total applications: {{ total }}</p>
+<h1 class="mb-4">Dashboard</h1>
+
+<div class="row mb-4">
+  <div class="col-md-3 mb-3">
+    <div class="card text-center"><div class="card-body">
+      <h2>{{ counts.applications }}</h2><div class="text-muted">Applications</div>
+    </div></div>
+  </div>
+  <div class="col-md-3 mb-3">
+    <div class="card text-center"><div class="card-body">
+      <h2>{{ counts.jobs }}</h2><div class="text-muted">Jobs</div>
+    </div></div>
+  </div>
+  <div class="col-md-3 mb-3">
+    <div class="card text-center"><div class="card-body">
+      <h2>{{ counts.companies }}</h2><div class="text-muted">Companies</div>
+    </div></div>
+  </div>
+  <div class="col-md-3 mb-3">
+    <div class="card text-center"><div class="card-body">
+      <h2>{{ counts.contacts }}</h2><div class="text-muted">Contacts</div>
+    </div></div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-5 mb-4">
+    <h4>Applications by Status</h4>
+    <table class="table bg-white">
+      {% for status, n in status_counts.items() %}
+      <tr><td>{{ status }}</td><td class="text-end"><span class="badge text-bg-primary">{{ n }}</span></td></tr>
+      {% endfor %}
+    </table>
+  </div>
+  <div class="col-md-7 mb-4">
+    <h4>Recent Applications</h4>
+    <table class="table table-striped bg-white">
+      <thead><tr><th>Job</th><th>Company</th><th>Date</th><th>Status</th></tr></thead>
+      <tbody>
+        {% for r in recent %}
+        <tr>
+          <td>{{ r.job_title or '' }}</td>
+          <td>{{ r.company_name or '' }}</td>
+          <td>{{ r.application_date }}</td>
+          <td>{{ r.status }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" class="text-center">No applications yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
 {% endblock %}
