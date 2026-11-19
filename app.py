@@ -71,6 +71,86 @@ def delete_company(company_id):
     flash("Company deleted.", "success")
     return redirect(url_for("companies"))
 
+# ---------- Contacts ----------
 
+def validate_contact(form):
+    if not form["contact_name"].strip():
+        return "Contact name is required."
+    if not form["company_id"]:
+        return "Please choose a company."
+    if form["email"] and "@" not in form["email"]:
+        return "Email must contain an @."
+    return None
+
+
+def contact_values(form):
+    return (
+        form["company_id"],
+        form["contact_name"].strip(),
+        form["title"],
+        form["email"],
+        form["phone"],
+        form["linkedin_url"],
+        form["notes"],
+    )
+
+
+@app.route("/contacts")
+def contacts():
+    rows = query_all(
+        "SELECT c.*, co.company_name FROM contacts c "
+        "LEFT JOIN companies co ON c.company_id = co.company_id "
+        "ORDER BY c.contact_name"
+    )
+    return render_template("contacts.html", contacts=rows)
+
+
+@app.route("/contacts/add", methods=["GET", "POST"])
+def add_contact():
+    companies = query_all("SELECT company_id, company_name FROM companies ORDER BY company_name")
+    if request.method == "POST":
+        error = validate_contact(request.form)
+        if error:
+            flash(error, "danger")
+            return render_template("contact_form.html", contact=request.form,
+                                   companies=companies, action="Add")
+        execute(
+            "INSERT INTO contacts (company_id, contact_name, title, email, phone, linkedin_url, notes) "
+            "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+            contact_values(request.form),
+        )
+        flash("Contact added.", "success")
+        return redirect(url_for("contacts"))
+    return render_template("contact_form.html", contact={}, companies=companies, action="Add")
+
+
+@app.route("/contacts/<int:contact_id>/edit", methods=["GET", "POST"])
+def edit_contact(contact_id):
+    contact = query_one("SELECT * FROM contacts WHERE contact_id = %s", (contact_id,))
+    if not contact:
+        flash("Contact not found.", "danger")
+        return redirect(url_for("contacts"))
+    companies = query_all("SELECT company_id, company_name FROM companies ORDER BY company_name")
+    if request.method == "POST":
+        error = validate_contact(request.form)
+        if error:
+            flash(error, "danger")
+            return render_template("contact_form.html", contact=request.form,
+                                   companies=companies, action="Edit")
+        execute(
+            "UPDATE contacts SET company_id=%s, contact_name=%s, title=%s, email=%s, "
+            "phone=%s, linkedin_url=%s, notes=%s WHERE contact_id=%s",
+            contact_values(request.form) + (contact_id,),
+        )
+        flash("Contact updated.", "success")
+        return redirect(url_for("contacts"))
+    return render_template("contact_form.html", contact=contact, companies=companies, action="Edit")
+
+
+@app.route("/contacts/<int:contact_id>/delete", methods=["POST"])
+def delete_contact(contact_id):
+    execute("DELETE FROM contacts WHERE contact_id = %s", (contact_id,))
+    flash("Contact deleted.", "success")
+    return redirect(url_for("contacts"))
 if __name__ == "__main__":
     app.run(debug=True)
