@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}{{ action }} Job{% endblock %}
+{% block content %}
+<h1>{{ action }} Job</h1>
+<form method="post" class="bg-white p-4 border rounded">
+  <div class="mb-3">
+    <label class="form-label">Company *</label>
+    <select class="form-select" name="company_id" required>
+      <option value="">-- Choose a company --</option>
+      {% for co in companies %}
+      <option value="{{ co.company_id }}"
+        {% if (job.company_id | string) == (co.company_id | string) %}selected{% endif %}>
+        {{ co.company_name }}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Job Title *</label>
+    <input class="form-control" name="job_title" value="{{ job.job_title or '' }}" required>
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Job Type *</label>
+    <select class="form-select" name="job_type" required>
+      <option value="">-- Choose a type --</option>
+      {% for t in job_types %}
+      <option value="{{ t }}" {% if job.job_type == t %}selected{% endif %}>{{ t }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="row">
+    <div class="col-md-6 mb-3">
+      <label class="form-label">Salary Min</label>
+      <input class="form-control" type="number" min="0" name="salary_min" value="{{ job.salary_min if job.salary_min is not none else '' }}">
+    </div>
+    <div class="col-md-6 mb-3">
+      <label class="form-label">Salary Max</label>
+      <input class="form-control" type="number" min="0" name="salary_max" value="{{ job.salary_max if job.salary_max is not none else '' }}">
+    </div>
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Job URL</label>
+    <input class="form-control" name="job_url" value="{{ job.job_url or '' }}">
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Date Posted</label>
+    <input class="form-control" type="date" name="date_posted" value="{{ job.date_posted or '' }}">
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Required Skills (comma-separated)</label>
+    <input class="form-control" name="requirements" value="{{ requirements_text }}" placeholder="Python, SQL, Flask">
+  </div>
+  <button class="btn btn-primary">Save</button>
+  <a class="btn btn-secondary" href="{{ url_for('jobs') }}">Cancel</a>
+</form>
+{% endblock %}

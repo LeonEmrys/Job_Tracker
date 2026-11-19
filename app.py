@@ -1,4 +1,5 @@
 import os
+import json
 from flask import Flask, render_template, request, redirect, url_for, flash
 from database import get_db, query_all, query_one, execute
 
@@ -152,5 +153,129 @@ def delete_contact(contact_id):
     execute("DELETE FROM contacts WHERE contact_id = %s", (contact_id,))
     flash("Contact deleted.", "success")
     return redirect(url_for("contacts"))
+# ---------- Jobs ----------
+
+JOB_TYPES = ["Full-time", "Part-time", "Contract", "Internship"]
+
+
+def parse_requirements(value):
+    """Turn the JSON column into a Python list of skills."""
+    if not value:
+        return []
+    if isinstance(value, (bytes, bytearray)):
+        value = value.decode()
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except ValueError:
+            return []
+    return value if isinstance(value, list) else []
+
+
+def skills_from_text(text):
+    return [s.strip() for s in text.split(",") if s.strip()]
+
+
+def to_int(text):
+    text = text.strip()
+    return int(text) if text else None
+
+
+def validate_job(form):
+    if not form["job_title"].strip():
+        return "Job title is required."
+    if not form["company_id"]:
+        return "Please choose a company."
+    if form["job_type"] not in JOB_TYPES:
+        return "Please choose a job type."
+    try:
+        low = to_int(form["salary_min"])
+        high = to_int(form["salary_max"])
+    except ValueError:
+        return "Salary must be a whole number."
+    if low is not None and high is not None and low > high:
+        return "Minimum salary cannot be higher than maximum salary."
+    return None
+
+
+def job_values(form):
+    return (
+        form["company_id"],
+        form["job_title"].strip(),
+        form["job_type"],
+        to_int(form["salary_min"]),
+        to_int(form["salary_max"]),
+        form["job_url"],
+        form["date_posted"] or None,
+        json.dumps(skills_from_text(form["requirements"])),
+    )
+
+
+@app.route("/jobs")
+def jobs():
+    rows = query_all(
+        "SELECT j.*, co.company_name FROM jobs j "
+        "LEFT JOIN companies co ON j.company_id = co.company_id "
+        "ORDER BY j.date_posted DESC, j.job_title"
+    )
+    for row in rows:
+        row["skills"] = parse_requirements(row["requirements"])
+    return render_template("jobs.html", jobs=rows)
+
+
+@app.route("/jobs/add", methods=["GET", "POST"])
+def add_job():
+    companies = query_all("SELECT company_id, company_name FROM companies ORDER BY company_name")
+    if request.method == "POST":
+        error = validate_job(request.form)
+        if error:
+            flash(error, "danger")
+            return render_template("job_form.html", job=request.form, companies=companies,
+                                   job_types=JOB_TYPES, requirements_text=request.form["requirements"],
+                                   action="Add")
+        execute(
+            "INSERT INTO jobs (company_id, job_title, job_type, salary_min, salary_max, "
+            "job_url, date_posted, requirements) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+            job_values(request.form),
+        )
+        flash("Job added.", "success")
+        return redirect(url_for("jobs"))
+    return render_template("job_form.html", job={}, companies=companies, job_types=JOB_TYPES,
+                           requirements_text="", action="Add")
+
+
+@app.route("/jobs/<int:job_id>/edit", methods=["GET", "POST"])
+def edit_job(job_id):
+    job = query_one("SELECT * FROM jobs WHERE job_id = %s", (job_id,))
+    if not job:
+        flash("Job not found.", "danger")
+        return redirect(url_for("jobs"))
+    companies = query_all("SELECT company_id, company_name FROM companies ORDER BY company_name")
+    if request.method == "POST":
+        error = validate_job(request.form)
+        if error:
+            flash(error, "danger")
+            return render_template("job_form.html", job=request.form, companies=companies,
+                                   job_types=JOB_TYPES, requirements_text=request.form["requirements"],
+                                   action="Edit")
+        execute(
+            "UPDATE jobs SET company_id=%s, job_title=%s, job_type=%s, salary_min=%s, "
+            "salary_max=%s, job_url=%s, date_posted=%s, requirements=%s WHERE job_id=%s",
+            job_values(request.form) + (job_id,),
+        )
+        flash("Job updated.", "success")
+        return redirect(url_for("jobs"))
+    return render_template("job_form.html", job=job, companies=companies, job_types=JOB_TYPES,
+                           requirements_text=", ".join(parse_requirements(job["requirements"])),
+                           action="Edit")
+
+
+@app.route("/jobs/<int:job_id>/delete", methods=["POST"])
+def delete_job(job_id):
+    execute("DELETE FROM jobs WHERE job_id = %s", (job_id,))
+    flash("Job deleted.", "success")
+    return redirect(url_for("jobs"))
+
+
 if __name__ == "__main__":
     app.run(debug=True)
